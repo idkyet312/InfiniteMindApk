@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.text.method.ScrollingMovementMethod;
@@ -101,8 +103,25 @@ public class MainActivity extends AppCompatActivity {
         // Initialize your Retrofit service
     }
 
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable checkSpeakingRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!textToSpeech.isSpeaking() && AutoSpeak) {
+                promptSpeechInput(null);
+            } else if (textToSpeech.isSpeaking() && AutoSpeak) {
+                // Re-post the Runnable to check again after 2 seconds
+                handler.postDelayed(this, 100);
+            }
+        }
+    };
+
     private void speakOut(String text) {
         textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+        // Start checking if TextToSpeech is still speaking after initiating speech
+        if(AutoSpeak) {
+            handler.postDelayed(checkSpeakingRunnable, 1);
+        }
     }
 
 
