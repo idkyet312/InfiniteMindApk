@@ -1,187 +1,196 @@
 package com.example.myapplication;
 
-import android.Manifest;
-import android.annotation.SuppressLint;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.AssetManager;
-import android.media.MediaRecorder;
-import android.os.Build;
+import android.content.pm.ResolveInfo;
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
+import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
-import androidx.annotation.NonNull;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import com.google.android.material.textfield.TextInputEditText;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.UnrecoverableKeyException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
-import java.io.File;
-import java.io.IOException;
-import java.security.Key;
-import java.security.KeyPair;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-import android.app.Activity;
-import android.content.Context;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
+import android.Manifest;
 
-import android.content.Context;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
+import android.Manifest;
+import android.content.pm.PackageManager;
 
-import java.io.InputStream;
-import java.security.Key;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.Signature;
-import java.io.InputStream;
-import java.security.KeyStore;
-import java.io.FileOutputStream;
+import org.w3c.dom.Text;
+// Other imports as needed
 
-import java.security.cert.Certificate;
-import java.util.Enumeration;
-import java.util.Properties;
+
 
 public class MainActivity extends AppCompatActivity {
-    private static final int PERMISSION_CODE = 200;
-    private static final int REQUEST_RECORD_AUDIO_PERMISSION = 201;
-    private MediaRecorder mediaRecorder;
-    private String outputFile;
-    private Button btnRecord;
 
-    private KeyStoreHelper key;
+    private static final int MY_PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
 
-    private TextView text1;
-    private TextInputEditText editTextOne;
-    private Context context;
+    private TextView textViewUser;
+    public TextView InputText;
 
-    // Assuming KeyStoreHelper and CassandraConnector are correctly implemented elsewhere
-    // private KeyStoreHelper keystoreHelper; // Not used directly in this snippet
-    // private CassandraConnector cassandraConnector; // Assuming its instantiation requires context
+    private TextToSpeech textToSpeech;
+
+    private ActivityResultLauncher<Intent> speechResultLauncher;
+
+    public boolean AutoSpeak = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        textViewUser = findViewById(R.id.AIInput);
+        textViewUser.setMovementMethod(new ScrollingMovementMethod()); // Enable scrolling
 
-        // Ensure the key pair is generated before signing
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, MY_PERMISSIONS_REQUEST_RECORD_AUDIO);
+        }
 
-        btnRecord = findViewById(R.id.btnrecord);
-        text1 = findViewById(R.id.textone);
-        editTextOne = findViewById(R.id.myInputEditText);
-
-        addKey();
+        checkSpeechRecognizer();
 
 
 
-        outputFile = getExternalFilesDir(null).getAbsolutePath() + "/recording.3gp";
-
-        btnRecord.setOnClickListener(v -> {
-            if (checkPermissions()) {
-                startRecording();
-            } else {
-                ActivityCompat.requestPermissions(MainActivity.this,
-                        new String[]{Manifest.permission.RECORD_AUDIO},
-                        REQUEST_RECORD_AUDIO_PERMISSION);
+        speechResultLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        ArrayList<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                        if (matches != null && !matches.isEmpty()) {
+                            String spokenText = matches.get(0);
+                            OutputCode(spokenText);
+                        }
+                    }
+                }
+        );
+        textToSpeech = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    int result = textToSpeech.setLanguage(Locale.US); // Set your desired language
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e("TTS", "This Language is not supported");
+                    } else {
+                        // Your code to execute when the TTS is initialized
+                    }
+                } else {
+                    Log.e("TTS", "Initialization Failed!");
+                }
             }
         });
+
+        // Initialize your Retrofit service
     }
-    public void addKey() {
-        // Load the BKS keystore
+
+    private void speakOut(String text) {
+        textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+    }
+
+
+    private void checkSpeechRecognizer() {
+        // Check if speech recognition is supported
+        PackageManager pm = getPackageManager();
+        List<ResolveInfo> activities = pm.queryIntentActivities(new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0);
+        if (activities.size() == 0) {
+            // Disable or hide your speech to text UI components
+            Log.e("STT", "Speech recognition is not supported on this device.");
+        }
+    }
+
+
+
+    final int REQUEST_CODE_SPEECH_INPUT = 100;
+
+
+    public void promptSpeechInput(View view) {
+        AutoSpeak = true;
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        Intent SpeechInput = intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say something...");
+
         try {
-            AssetManager asset = getAssets();
-            System.out.println("add key");
-            InputStream is = asset.open("mykeystore");
-            System.out.println("add key1.5");
-            KeyStore bksStore = KeyStore.getInstance("BKS");
-
-            bksStore.load(is, "ubuntu".toCharArray());
-            System.out.println(bksStore.getType());
-
-        } catch (KeyStoreException e) {
-            throw new RuntimeException(e);
-        } catch (CertificateException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            speechResultLauncher.launch(intent);
+        } catch (ActivityNotFoundException a) {
+            Toast.makeText(getApplicationContext(), "Speech not supported", Toast.LENGTH_SHORT).show();
         }
     }
 
-        // Save the updated keystore to internal storage
-            //key.saveKeystoreToFile(keyStore, getApplicationContext(), "updated_" + keystoreName, keystorePassword);
-
-
-    private void startRecording() {
-        if (TextUtils.isEmpty(editTextOne.getText())) {
-            setupMediaRecorder();
-            try {
-                mediaRecorder.prepare();
-                mediaRecorder.start();
-                CassandraConnector connector = new CassandraConnector(this);
-                File Dir = getFilesDir();
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    connector.connect(Dir);
-                }
-
-            } catch (IllegalStateException | IOException e) {
-                e.printStackTrace();
-                text1.setText("Recording failed to start.");
-            }
-        }
-    }
-
-
-    private void setupMediaRecorder() {
-        mediaRecorder = new MediaRecorder();
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-        mediaRecorder.setOutputFile(outputFile);
-    }
-
-    private boolean checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSION_CODE);
-            return false;
-        }
-        return true;
-    }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startRecording();
-            } else {
-                text1.setText("Permission denied. Cannot record.");
-            }
+    public void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
         }
+        super.onDestroy();
     }
 
-    private class with {
+    public void EnterInput(View view)
+    {
+        OutputCode(null);
+    }
+
+    public void OutputCode(String SpeachInput){
+        ApiService apiService = RetrofitClient.getClient().create(ApiService.class);
+        InputText = findViewById(R.id.UserInput);
+
+        String text = String.valueOf(InputText.getText());
+
+        InputText.setText("");
+
+        if(AutoSpeak)
+        {
+            text = SpeachInput;
+        }
+
+        Data datasend = new Data(text, "");
+
+
+        Call<Data> callToAi = apiService.getUsers(datasend);
+        String finalText = text;
+        callToAi.enqueue(new Callback<Data>() {
+            @Override
+            public void onResponse(Call<Data> call, Response<Data> response) {
+                if (response.isSuccessful()) {
+                    Data data = response.body();
+                    String textdone = textViewUser.getText().toString() + "\n\nYou: " + finalText + "\n" + data.toString();
+                    speakOut(data.toString());
+                    textViewUser.setText(textdone);
+
+
+                    // Scroll to the bottom
+                    final int scrollAmount = textViewUser.getLayout().getLineTop(textViewUser.getLineCount()) - textViewUser.getHeight();
+                    if (scrollAmount > 0)
+                        textViewUser.scrollTo(0, scrollAmount);
+                    else
+                        textViewUser.scrollTo(0, 0);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Data> call, Throwable t) {
+                // Handle failure
+            }
+        });
     }
 }

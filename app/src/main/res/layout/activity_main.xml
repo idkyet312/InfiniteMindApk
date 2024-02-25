@@ -1,20 +1,16 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<!-- Layout file: activity_main.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
 
-    <com.example.myapplication.MyView
-        style="@style/Widget.Theme.MyApplication.MyView"
+    <Button
+        android:id="@+id/button3"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:paddingLeft="20dp"
-        android:paddingBottom="40dp"
-        app:exampleDimension="24sp"
-        app:exampleString="" />
-
-    <!-- Button to start recording -->
-    <!-- Added margin to separate buttons -->
-
+        android:layout_height="wrap_content"
+        android:text="AutoRecord"
+        android:onClick="promptSpeechInput"/>
 
     <TableLayout
         android:layout_width="match_parent"
@@ -23,59 +19,52 @@
 
         <TableRow
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:gravity="bottom">
 
-            <TextView
-                android:id="@+id/textone"
-                android:layout_marginTop="90dp"
-                android:text="Stopped" />
+            <EditText
+                android:id="@+id/AIInput"
+                android:layout_width="wrap_content"
+                android:layout_height="428dp"
+                android:editable="false"
+                android:ems="10"
+                android:focusableInTouchMode="false"
+                android:gravity="start|top"
+                android:inputType="textMultiLine"
+                android:text="---------Welcome to Infinite Mind----------- \n\nChoose a weapon to begin:" />
+
         </TableRow>
-
-        <!-- Button to stop recording -->
 
         <TableRow
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent"
+            android:gravity="bottom">
 
             <EditText
-                android:id="@+id/editTextTextMultiLine"
+                android:id="@+id/UserInput"
                 android:layout_width="wrap_content"
-                android:layout_height="212dp"
+                android:layout_height="61dp"
                 android:ems="10"
-                android:gravity="start|top"
+                android:gravity="bottom"
+                android:hint="write here..."
                 android:inputType="textMultiLine" />
         </TableRow>
 
         <TableRow
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/myInputEditText"
-                    android:layout_width="match_parent"
-                    android:layout_height="93dp"
-                    android:hint="Write here or speak"
-                    android:text="" />
-            </com.google.android.material.textfield.TextInputLayout>
-        </TableRow>
-
-        <TableRow
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:gravity="bottom">
 
             <Button
-                android:id="@+id/btnrecord"
-                android:layout_width="316dp"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="0dp"
-                android:text="Record / Send" />
+                android:id="@+id/button"
+                android:layout_width="314dp"
+                android:layout_height="132dp"
+                android:onClick="EnterInput"
+                android:text="Send" />
+
+
 
         </TableRow>
-    </TableLayout>
 
-</FrameLayout>
+    </TableLayout>
+</LinearLayout>
