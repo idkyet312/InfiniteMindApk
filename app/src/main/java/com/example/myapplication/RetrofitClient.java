@@ -5,6 +5,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
     private static final String BASE_URL = "https://pythonastradb.azurewebsites.net/";
+    // REAL ONE ABOVE
+    //private static final String BASE_URL = "https://pythonastradbtest.azurewebsites.net/";
     private static Retrofit retrofit = null;
 
     public static Retrofit getClient() {
